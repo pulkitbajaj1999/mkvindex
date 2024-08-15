@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Styled Search Filter with Sorting</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+
+        .loader {
+            /* margin-right: 10px; Space between text and spinner */
+            width: 24px;
+            height: 24px;
+            border: 3px solid #3498db; /* Spinner color */
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            left: 2rem;
+            display: none;
+        }
+
+        /* Show the loader by default */
+        .loader.show {
+            display: inline-block;
+        }
+
+        /* Hide the loader by default, use JavaScript to toggle
+        .hide {
+            display: none;
+        } */
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+
+      a {
+            text-decoration: none; /* Remove underline */
+            color: #007bff; /* Default link color */
+            transition: color 0.3s ease; /* Smooth transition for color change */
+        }
+
+        a:hover {
+            color: #0056b3; /* Color when hovered */
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        a:visited {
+            color: #6c757d; /* Color after link has been visited */
+        }
+
+      .container {
+        width: 90%;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        margin-top: 0;
+        color: #333;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 600;
+        display: flex;
+        justify-content: center;
+        position: relative;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      #searchBar {
+        padding: 10px;
+        flex: 0.9;
+        border: 2px solid #007bff;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+        transition: border-color 0.3s ease;
+        margin-right: 10px;
+      }
+
+      #searchBar:focus {
+        outline: none;
+        border-color: #0056b3;
+        box-shadow: 0 0 0 3px rgba(38, 143, 255, 0.25);
+      }
+
+      #sortMenu {
+        padding: 10px;
+        border: 2px solid #007bff;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+        transition: border-color 0.3s ease;
+      }
+
+      #sortMenu:focus {
+        outline: none;
+        border-color: #0056b3;
+      }
+
+      #items {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      #items li {
+        background: #ffffff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        font-size: 18px;
+        color: #333;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      #items li:hover {
+        background: #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      #no-content {
+        margin: 10px;
+        margin-top: 40px;
+        margin-bottom: 100px;
+        display: none;
+      }
+
+      .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0;
+      }
+
+      .pagination-button,
+      .pagination-number {
+        background-color: #007bff;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        padding: 5px 10px; /* Decrease padding for smaller buttons */
+        margin: 0 3px; /* Decrease margin to bring buttons closer */
+        font-size: 14px; /* Smaller font size */
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        /* width: 30px; Fixed width for buttons */
+        text-align: center;
+      }
+
+      .pagination-button.disabled {
+        background-color: #d6d6d6;
+        cursor: not-allowed;
+      }
+
+      .pagination-button:hover:not(.disabled) {
+        background-color: #0056b3;
+      }
+
+      .pagination-number {
+        background-color: #ffffff;
+        color: #007bff;
+        border: 1px solid #007bff;
+      }
+
+      .pagination-number.active {
+        background-color: #007bff;
+        color: #ffffff;
+      }
+
+      .pagination-number:hover {
+        background-color: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        <span id="loader" class="loader" aria-hidden="true"></span>
+        <span>MKV INDEX</span>
+      </h1>
+      <div class="controls">
+        <input type="text" id="searchBar" placeholder="Search for an item..." />
+        <select id="sortMenu">
+          <option value="id">ID</option>
+          <option value="title">Title</option>
+          <option value="date">Date</option>
+        </select>
+      </div>
+      <div id="no-content">
+        <p>No content to display</p>
+      </div>
+      <ul id="items"></ul>
+      <div class="pagination-container">
+        <button id="prevPage" class="pagination-button disabled" disabled>
+          Prev
+        </button>
+        <div id="pageNumbers"></div>
+        <button id="nextPage" class="pagination-button">Next</button>
+      </div>
+    </div>
+
+    <script>
+      let _config = {
+        BASE_URL: "",
+        ENDPOINTS: {
+          getHome: "/home",
+          getConfigurations: "/config",
+          getItems: "/items",
+        },
+      };
+      let _globals = {
+        order: "asc",
+        order_by: "id",
+        page: 1,
+        per_page: 10,
+        search: "",
+        totalItems: 0,
+        totalPages: 1,
+      };
+
+      const pageNumbersContainer = document.getElementById("pageNumbers");
+      const prevPageButton = document.getElementById("prevPage");
+      const nextPageButton = document.getElementById("nextPage");
+
+      // Debounce function
+      function debounce(func, delay) {
+        let timeout;
+        return function (...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+      }
+
+      function fetchItems() {
+        let url = _config.BASE_URL + _config.ENDPOINTS.getItems;
+        let parametrizedUrl = `${url}?order=${_globals.order}&order_by=${_globals.order_by}&page=${_globals.page}&per_page=${_globals.per_page}&search=${_globals.search}`;
+
+        return fetch(parametrizedUrl)
+          .then((res) => res.json())
+          .then((data) => data)
+          .catch((err) => {
+            console.error(`[fetchItems] ${err}`);
+          });
+      }
+
+      function createListItemHtml(item) {
+        let { title, content } = item;
+        return `
+                <li class="list__item">
+                    <h2>${title}</h2>
+                    <div>${content}</div>
+                </li>
+            `;
+      }
+
+      function updateList(items) {
+        let noContent = document.getElementById("no-content");
+        let listElement = document.getElementById("items");
+
+        if (items.length <= 0) {
+          noContent.style.display = "block";
+          listElement.innerHTML = "";
+        } else {
+          noContent.style.display = "none";
+          let html = "";
+          for (let item of items) {
+            html += createListItemHtml(item);
+          }
+          listElement.innerHTML = html;
+        }
+      }
+
+      // pagination
+
+      function renderPageNumbers() {
+        pageNumbersContainer.innerHTML = ""; // Clear existing page numbers
+
+        const maxPageButtons = 3;
+        let startPage, endPage;
+
+        if (_globals.totalPages <= maxPageButtons) {
+          // Total pages less than or equal to max page buttons
+          startPage = 1;
+          endPage = _globals.totalPages;
+        } else {
+          // More than max page buttons
+          const half = Math.floor(maxPageButtons / 2);
+          if (_globals.page <= half) {
+            startPage = 1;
+            endPage = maxPageButtons;
+          } else if (_globals.page + half >= _globals.totalPages) {
+            startPage = _globals.totalPages - maxPageButtons + 1;
+            endPage = _globals.totalPages;
+          } else {
+            startPage = _globals.page - half;
+            endPage = _globals.page + half;
+          }
+        }
+
+        // adding first page
+        if (startPage > 1) {
+
+            const pageButton = document.createElement("button");
+            pageButton.textContent = 1;
+            pageButton.className = "pagination-number";
+            pageButton.addEventListener("click", () => {
+            _globals.page = 1;
+            populate();
+            updatePagination();
+            });
+            pageNumbersContainer.appendChild(pageButton); 
+
+            // create dots
+            const dots = document.createElement("span");
+            dots.textContent = "...";
+            dots.className = "pagination-dots";
+            pageNumbersContainer.appendChild(dots);
+        }
+
+
+        for (let i = startPage; i <= endPage; i++) {
+          const pageButton = document.createElement("button");
+          pageButton.textContent = i;
+          pageButton.className = "pagination-number";
+          if (i === _globals.page) {
+            pageButton.classList.add("active");
+          }
+          pageButton.addEventListener("click", () => {
+            _globals.page = i;
+            populate();
+            updatePagination();
+          });
+          pageNumbersContainer.appendChild(pageButton);
+        }
+
+        
+
+        if (endPage < _globals.totalPages) {
+          // create dots
+          const dots = document.createElement("span");
+          dots.textContent = "...";
+          dots.className = "pagination-dots";
+          pageNumbersContainer.appendChild(dots);
+
+          const pageButton = document.createElement("button");
+          pageButton.textContent = _globals.totalPages;
+          pageButton.className = "pagination-number";
+          pageButton.addEventListener("click", () => {
+            _globals.page = _globals.totalPages;
+            populate();
+            updatePagination();
+          });
+          pageNumbersContainer.appendChild(pageButton);
+        }
+
+        updateButtonStates();
+      }
+
+      function updateButtonStates() {
+        prevPageButton.classList.toggle("disabled", _globals.page === 1);
+        prevPageButton.disabled = _globals.page === 1;
+        nextPageButton.classList.toggle(
+          "disabled",
+          _globals.page === _globals.totalPages
+        );
+        nextPageButton.disabled = _globals.page === _globals.totalPages;
+      }
+
+      function updatePagination() {
+        renderPageNumbers();
+        updateButtonStates();
+      }
+
+      function populate() {
+        let loader = document.getElementById('loader')
+        loader.classList.add('show')
+        fetchItems()
+          .then((result) => {
+            updateList(result.items);
+            _globals.currentPage = result.currentPage || 1;
+            _globals.totalPages = result.totalPages || 1;
+            updatePagination();
+          })
+          .catch((err) => {
+            updateList([]);
+          }).finally(() => {
+            loader.classList.remove('show')
+          })
+      }
+
+      // Debounced version of handlers
+      const debouncedPopulate = debounce(populate, 300);
+
+      function handleSearchInput(event) {
+        _globals.search =
+          event.target.value && event.target.value.length >= 3
+            ? event.target.value
+            : "";
+        debouncedPopulate();
+      }
+
+      function handleSortChange(event) {
+        _globals.order_by = event.target.value;
+        populate();
+      }
+
+      function main() {
+        // Attach event listeners
+        document
+          .getElementById("searchBar")
+          .addEventListener("input", handleSearchInput);
+        document
+          .getElementById("sortMenu")
+          .addEventListener("change", handleSortChange);
+
+        // Event listeners for pagination buttons
+        prevPageButton.addEventListener("click", () => {
+          if (_globals.page > 1) {
+            _globals.page--;
+            populate();
+            updatePagination();
+          }
+        });
+
+        nextPageButton.addEventListener("click", () => {
+          if (_globals.page < _globals.totalPages) {
+            _globals.page++;
+            populate();
+            updatePagination();
+          }
+        });
+
+        populate();
+      }
+
+      document.addEventListener("DOMContentLoaded", main);
+    </script>
+  </body>
+</html>
