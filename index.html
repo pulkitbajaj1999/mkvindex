@@ -210,10 +210,6 @@
           <option value="date">Date</option>
         </select>
       </div>
-      <div id="no-content">
-        <p>No content to display</p>
-      </div>
-      <ul id="items"></ul>
       <div class="pagination-container">
         <button id="prevPage" class="pagination-button disabled" disabled>
           Prev
@@ -221,6 +217,10 @@
         <div id="pageNumbers"></div>
         <button id="nextPage" class="pagination-button">Next</button>
       </div>
+      <div id="no-content">
+        <p>No content to display</p>
+      </div>
+      <ul id="items"></ul>
     </div>
 
     <script>
@@ -390,6 +390,10 @@
         nextPageButton.disabled = _globals.page === _globals.totalPages;
       }
 
+      function moveToTop() {
+        window.scrollTo(0, 0)
+      }
+
       function updatePagination() {
         renderPageNumbers();
         updateButtonStates();
@@ -404,6 +408,7 @@
             _globals.currentPage = result.currentPage || 1;
             _globals.totalPages = result.totalPages || 1;
             updatePagination();
+            moveToTop()
           })
           .catch((err) => {
             updateList([]);
